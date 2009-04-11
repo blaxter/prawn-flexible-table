@@ -189,74 +189,99 @@ module Prawn
         :vertical_padding    => 5 } 
     end
 
-    def calculate_column_widths(manual_widths=nil, width=nil)
-      @column_widths = [0] * @data[0].inject(0){ |acc, e| 
-        acc += (e.is_a?(Hash) && e.has_key?(:colspan)) ? e[:colspan] : 1 }
-
-      cells_width = lambda { |cell|
-        cell_text = cell.is_a?(Hash) ? cell[:text] : cell.to_s
-        cell_text.lines.map do |e|
-          @document.width_of(e, :size => C(:font_size))
-        end.max.to_f + 2*C(:horizontal_padding)
-      }
-      cells_colspan = lambda { |cell|
-        if cell.is_a?( Hash ) && cell[:colspan]
-          cell[:colspan]
-        elsif cell.respond_to?( :colspan )
-          cell.colspan
-        end
-      }
-      # Firstly, calculate column widths for cells without colspan attribute
+    # An iterator method around renderable_data method.
+    #
+    # The issue using renderable_data is that in each iteration you don't know
+    # the real index for that cell, due to colspan & rowspan values of the
+    # previous cells.
+    #
+    # So this method yields every cell (Prawn::Table::Cell) with its column
+    # index.
+    #
+    # Example:
+    #   +-----------+
+    #   | A     | B |
+    #   +-------+---+
+    #   | C | D | E |
+    #   +---+---+---+
+    # The values in each iteration will be:
+    #  * Cell A, 0
+    #  * Cell B, 2
+    #  * Cell C, 0
+    #  * Cell D, 1
+    #  * Cell E, 2
+    #
+    def each_cell_with_index
+      rowspan_cells = {}
       renderable_data.each do |row|
-        colspan = 0
-        row.each_with_index do |cell, i|
-          current_colspan = cells_colspan.call( cell )
-          if current_colspan.nil?
-            length = cells_width.call( cell ).ceil
-            index  = i + colspan
-            @column_widths[ index ] = length if length > @column_widths[ index ]
-          else
-            colspan += current_colspan - 1
+        index = 0
+        rowspan_cells.each_value { |v|    v[:rowspan] -= 1 }
+        rowspan_cells.delete_if  { |k, v| v[:rowspan] == 0 }
+        row.each do |cell|
+          if rowspan_cells[ index ]
+            index += rowspan_cells[ index ][:colspan]
           end
+
+          yield cell, index
+
+          if cell.rowspan > 1
+            rowspan_cells[ index ] = { :rowspan => cell.rowspan,
+                                       :colspan => cell.colspan }
+          end
+          index += cell.colspan
+        end # row.each
+      end # renderable_data.each
+    end
+
+    def calculate_column_widths(manual_widths=nil, width=nil)
+      @column_widths = [0] * @data[0].inject(0){ |total, e| total + e.colspan }
+      cells_width    = lambda{ |cell|
+        ( 2 * C(:horizontal_padding) +
+          cell.to_s.lines.map do |e|
+            @document.width_of(e, :size => C(:font_size))
+          end.max.to_f ).ceil
+      }
+
+      # Firstly, calculate column widths for cells without colspan attribute
+      each_cell_with_index do |cell, index|
+        if cell.colspan <= 1
+          length = cells_width.call( cell )
+          @column_widths[ index ] = length if length > @column_widths[ index ]
         end
       end
 
-      # Secondly, calculate column widths for cells with colspan attribute
-      renderable_data.each do |row|
-        colspan = 0
-        row.each_with_index do |cell, i|
-          current_colspan = cells_colspan.call( cell )
-          index           = i + colspan
-          unless current_colspan.nil?
-            calculate_width = @column_widths.slice( index, current_colspan ).
-                                             inject( 0 ) { |t, w| t + w }
-            length = cells_width.call( cell ).ceil
-            if length > calculate_width
-              # This is a little tricky, we have to increase each column
-              # that the actual colspan cell use, by a proportional part
-              # so the sum of these widths will be equal to the actual width
-              # of our colspan cell
-              difference  = length - calculate_width
-              increase    = ( difference / current_colspan ).floor
-              increase_by = [ increase ] * current_colspan
-              # it's important to sum, in total, the difference, so if
-              # difference is, e.g., 3 and current_colspan is 2, increase_by
-              # will be [ 1, 1 ], but actually we want to be [ 2, 1 ]
-              extra_dif   = difference - increase * current_colspan
-              extra_dif.times { |n| increase_by[n] += 1 }
-              current_colspan.times do |j|
-                @column_widths[ index + j ] += increase_by[j]
-              end
+      # Secondly, calculate column width for cell with colspan attribute
+      # and update @column_widths properly
+      each_cell_with_index do |cell, index|
+        current_colspan = cell.colspan
+        if current_colspan > 1
+          calculate_width = @column_widths.slice( index, current_colspan ).
+            inject( 0 ) { |t, w| t + w }
+          length = cells_width.call( cell )
+          if length > calculate_width
+            # This is a little tricky, we have to increase each column
+            # that the actual colspan cell use, by a proportional part
+            # so the sum of these widths will be equal to the actual width
+            # of our colspan cell
+            difference  = length - calculate_width
+            increase    = ( difference / current_colspan ).floor
+            increase_by = [ increase ] * current_colspan
+            # it's important to sum, in total, the difference, so if
+            # difference is, e.g., 3 and current_colspan is 2, increase_by
+            # will be [ 1, 1 ], but actually we want to be [ 2, 1 ]
+            extra_dif   = difference - increase * current_colspan
+            extra_dif.times { |n| increase_by[n] += 1 }
+            current_colspan.times do |j|
+              @column_widths[ index + j ] += increase_by[j]
             end
-            colspan += current_colspan - 1
-          end # if current_colspan
-        end # row.each_with_inedx
-      end
+          end
+        end # if current_colspan
+      end # row.each_with_inedx
 
-      # Thridly, stablish manual column widths
+      # Thridly, establish manual column widths
       manual_width = 0
-      manual_widths.each { |k,v| 
-        @column_widths[k] = v; manual_width += v } if manual_widths           
+      manual_widths.each { |k,v|
+        @column_widths[k] = v; manual_width += v } if manual_widths
 
       # Finally, ensures that the maximum width of the document is not exceeded.
       # Takes into consideration the manual widths specified (With full manual

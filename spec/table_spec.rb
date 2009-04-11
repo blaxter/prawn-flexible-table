@@ -34,7 +34,7 @@ describe "A table's width" do
   end
 
   it "should calculate unspecified column widths even when there is a cell " +
-     "with rowspan attribute and it's bigger than the other cells of " +
+     "with colspan attribute and it's bigger than the other cells of " +
      "these columns" do
     pdf = Prawn::Document.new
     hpad, fs = 3, 12
@@ -46,6 +46,29 @@ describe "A table's width" do
     # +---------------------------------+
     data = [ [ { :text => 'foobar baz waldo waldo', :colspan => 2 }, "foobar" ],
              [ "foo", "foo", "foo" ] ]
+    table = Prawn::Table.new( data, pdf,
+      :horizontal_padding => hpad,
+      :font_size          => fs )
+    # The relevant cells are:
+    #   - (0, 0) "foobar baz waldo waldo"
+    #   - (0 ,1) "foobar" [at col 2]
+    cells = %w( foobar\ baz\ waldo\ waldo foobar )
+
+    table.width.should == width_table_for( pdf, hpad, fs, cells )
+  end
+
+  it "should calculate unspecified column widths even when there are cells " +
+     "with rowspain attribute" do
+    pdf = Prawn::Document.new
+    hpad, fs = 3, 12
+
+    # +---------------------------------+
+    # | foobar baz waldo waldo | foobar |
+    # |                        + -------+
+    # |                        | foo    |
+    # +---------------------------------+
+    data = [ [ { :text => 'foobar baz waldo waldo', :rowspan => 2 }, "foobar" ],
+             [ "foo" ] ]
     table = Prawn::Table.new( data, pdf,
       :horizontal_padding => hpad,
       :font_size          => fs )
