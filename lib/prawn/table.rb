@@ -335,59 +335,59 @@ module Prawn
 
     def generate_table    
       page_contents = []
-      y_pos = @document.y 
+      y_pos = @document.y
+      rowspan_cells = {}
 
       @document.font_size C(:font_size) do
-        renderable_data.each_with_index do |row,index|
+        renderable_data.each_with_index do |row, index|
           c = Prawn::Table::CellBlock.new(@document)
-          
+
+          rowspan_cells.each_value { |v|    v[:rowspan] -= 1 }
+          rowspan_cells.delete_if  { |k, v| v[:rowspan] == 0 }
+
           col_index = 0
           row.each do |e|
-            case C(:align)
-            when Hash
-              align            = C(:align)[col_index]
-            else
-              align            = C(:align)
-            end   
-            
-            
-            align ||= e.to_s =~ NUMBER_PATTERN ? :right : :left 
-            
-            case e
-            when Prawn::Table::Cell
-              e.document = @document
-              e.width    = @column_widths[col_index]
-              e.horizontal_padding = C(:horizontal_padding)
-              e.vertical_padding   = C(:vertical_padding)    
-              e.border_width       = C(:border_width)
-              e.border_style       = :sides
-              e.align              = align 
-              c << e
-            else
-              text = e.is_a?(Hash) ? e[:text] : e.to_s
-              width = if e.is_a?(Hash) && e.has_key?(:colspan)
-                @column_widths.slice(col_index, e[:colspan]).inject { 
-                  |sum, width| sum + width }
+            align = case C(:align)
+              when Hash
+                C(:align)[ col_index ]
               else
-                @column_widths[col_index]
-              end
-              
-              c << Prawn::Table::Cell.new(
-                :document => @document, 
-                :text     => text,
-                :width    => width,
-                :horizontal_padding => C(:horizontal_padding),
-                :vertical_padding   => C(:vertical_padding),
-                :border_width       => C(:border_width),
-                :border_style       => :sides,
-                :align              => align ) 
+                C(:align)
             end
-            
-            col_index += (e.is_a?(Hash) && e.has_key?(:colspan)) ? e[:colspan] : 1
-          end
-                                              
+            align ||= e.to_s =~ NUMBER_PATTERN ? :right : :left
+
+            if rowspan_cells[ col_index ]
+              c << rowspan_cells[ col_index ][:cell_fake]
+              col_index += rowspan_cells[ col_index ][:colspan]
+            end
+
+            colspan = e.colspan
+            rowspan = e.rowspan
+
+            width = @column_widths.
+              slice( col_index, colspan ).
+              inject { |sum, width|  sum + width }
+
+            e.width              = width
+            e.horizontal_padding = C(:horizontal_padding)
+            e.vertical_padding   = C(:vertical_padding)
+            e.border_width       = C(:border_width)
+            e.align            ||= align
+
+            if rowspan > 1
+              cell_fake = Prawn::Table::CellFake.new( :width => width )
+              rowspan_cells[ col_index ] = {
+                :rowspan   => rowspan,
+                :colspan   => colspan,
+                :cell_fake => cell_fake
+              }
+            end
+            c << e
+            col_index += colspan
+          end # row.each do |e|
+
           bbox = @parent_bounds.stretchy? ? @document.margin_box : @parent_bounds
-          if c.height > y_pos - bbox.absolute_bottom
+          fit_in_current_page = c.height <= y_pos - bbox.absolute_bottom
+          if ! fit_in_current_page then
             if C(:headers) && page_contents.length == 1
               @document.start_new_page
               y_pos = @document.y
@@ -444,7 +444,18 @@ module Prawn
           e.background_color = C(:header_color) if C(:header_color)
         end
       end
-      
+
+      # modified the height of the cells with rowspan attribute
+      contents.each_with_index do |x, i|
+        x.cells.each do |cell|
+          if cell.rowspan > 1
+            heights_per_row ||= contents.map { |x| x.height }
+            cell.height = heights_per_row.
+                slice( i, cell.rowspan ).inject(0){ |sum, h| sum + h }
+          end
+        end
+      end
+
       contents.each do |x|
         unless x.background_color
           x.background_color = next_row_color if C(:row_colors)
