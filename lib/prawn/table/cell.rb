@@ -74,11 +74,14 @@ module Prawn
         if options[:padding]
           @horizontal_padding = @vertical_padding = options[:padding]
         end
+
+        @rowspan = options[:rowspan] || 1
+        @colspan = options[:colspan] || 1
       end
 
       attr_accessor :point, :border_style, :border_width, :background_color,
                     :document, :horizontal_padding, :vertical_padding, :align,
-                    :borders, :text_color, :border_color
+                    :borders, :text_color, :border_color, :rowspan, :colspan
                     
       attr_writer   :height, :width #:nodoc:   
            
