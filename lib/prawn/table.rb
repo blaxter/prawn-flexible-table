@@ -146,6 +146,8 @@ module Prawn
         C(:original_row_colors => C(:row_colors)) 
       end
 
+      # Once we have all configuration setted...
+      normalize_data
       calculate_column_widths(options[:column_widths], options[:width])
     end                                        
     
@@ -281,7 +283,29 @@ module Prawn
     end
 
     def renderable_data
-      C(:headers) ? [C(:headers)] + @data : @data
+      C(:headers) ? C(:headers) + @data : @data
+    end
+
+    # Transform all items from @data into Prawn::Table::Cell objects
+    def normalize_data
+      normalize = lambda { |data|
+        data.map do |row|
+          row.map do |cell|
+            unless cell.is_a?( Hash ) || cell.is_a?( Prawn::Table::Cell )
+              cell = { :text => cell.to_s }
+            end
+            if cell.is_a?( Hash )
+              cell = Prawn::Table::Cell.new( cell )
+            end
+            cell.document = @document
+            cell
+          end
+        end
+      }
+      @data = normalize.call( @data )
+      # C is an alias to configuration method, which is a wrapper around @config
+      @config[:headers] = normalize.call( [ C(:headers) ] ) if C(:headers)
+
     end
 
     def generate_table    
