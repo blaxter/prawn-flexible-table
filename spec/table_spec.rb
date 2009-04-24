@@ -10,6 +10,7 @@ describe "A table's width" do
 
     table.width.should == 300
   end
+
   it "should calculate unspecified column widths even " +
      "with rowspan cells declared (as hashes)" do
     pdf = Prawn::Document.new
@@ -29,6 +30,31 @@ describe "A table's width" do
     #   - (1, 1) "foo"
     #   - (0 ,1) "foobar" [at col 2]
     cells = %w( foo foo foobar )
+
+    table.width.should == width_table_for( pdf, hpad, fs, cells )
+  end
+
+  it "should calculate unspecified column widths even " +
+     "with rowspan cells declared before another bigger cells" do
+    pdf = Prawn::Document.new
+    hpad, fs = 3, 12
+    # +----------------------------+
+    # | foobarfoobar      | foobar |
+    # +----------------------------+
+    # | foo       | foo   | foo    |
+    # | foobarfoo | foo   | foo    |
+    # +----------------------------+
+    data = [ [ { :text => 'foobarfoobar', :colspan => 2 }, "foobar" ],
+             [ "foo", "foo", "foo" ],
+             [ "foobarfoo", "foo", "foo" ] ]
+    table = Prawn::Table.new( data, pdf,
+      :horizontal_padding => hpad,
+      :font_size          => fs )
+    # The relevant cells are:
+    #   - (2, 0) "foobarfoo"
+    #   - (1, 1) "foo"
+    #   - (0, 1) "foobar"
+    cells = %w( foobarfoo foo foobar )
 
     table.width.should == width_table_for( pdf, hpad, fs, cells )
   end
