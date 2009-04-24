@@ -328,4 +328,38 @@ describe "An invalid table" do
     }.should.raise( Prawn::Errors::EmptyTable )
   end   
 
+  it "should raise an InvalidTableData with bad formed data" do
+    lambda {
+      data = [ [ 'a', 'b' ], [ 'c' ] ]
+      @pdf.table( data )
+    }.should.raise( Prawn::Errors::InvalidTableData )
+
+    lambda {
+      data = [ [ 'a' ], [ 'b', 'c' ] ]
+      @pdf.table( data )
+    }.should.raise( Prawn::Errors::InvalidTableData )
+  end
+
+  it "should raise an InvalidTableData with bad formed data even with " +
+     "either rowspan or colspan cells" do
+    lambda {
+      data = [ [ { :rowspan => 2, :text => 'a' }, 'b' ],
+               [ 'c', 'd' ] ]
+      @pdf.table( data )
+    }.should.raise( Prawn::Errors::InvalidTableData )
+
+    lambda {
+      data = [ [ { :rowspan => 2, :text => 'a' },
+                 { :rowspan => 2, :text => 'b' } ],
+               [ 'c', 'd', 'e', 'f', 'g' ] ]
+      @pdf.table( data )
+    }.should.raise( Prawn::Errors::InvalidTableData )
+
+    lambda {
+      data = [ [ { :rowspan => 2, :text => 'a' },
+                 { :colspan => 2, :text => 'b' } ],
+               [ 'c', 'd', 'e' ] ]
+      @pdf.table( data )
+    }.should.raise( Prawn::Errors::InvalidTableData )
+  end
 end

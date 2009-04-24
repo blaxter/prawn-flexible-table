@@ -148,6 +148,7 @@ module Prawn
 
       # Once we have all configuration setted...
       normalize_data
+      check_rows_lengths
       calculate_column_widths(options[:column_widths], options[:width])
     end                                        
     
@@ -189,6 +190,32 @@ module Prawn
         :vertical_padding    => 5 } 
     end
 
+    # Check that all rows are well formed with the same length.
+    #
+    # Will raise an <tt>Prawn::Errors::InvalidTableData</tt> exception
+    # in case that a bad formed row is found
+    def check_rows_lengths
+      tables_width = nil
+      actual_row   = 0
+      old_index    = -1
+      check_last_row = lambda {
+        tables_width ||= old_index # only setted the first time
+        if tables_width != nil && tables_width != old_index
+          raise Prawn::Errors::InvalidTableData
+            "The row #{actual_row} has a length of #{old_index + 1}, " +
+            "it should be of #{tables_width + 1} according to the previous rows"
+        end
+      }
+      each_cell_with_index do |cell, i, n_row|
+        if actual_row != n_row # is new row
+          check_last_row.call
+          actual_row = n_row
+        end
+        old_index = i
+      end
+      check_last_row.call
+    end
+
     # An iterator method around renderable_data method.
     #
     # The issue using renderable_data is that in each iteration you don't know
@@ -205,14 +232,15 @@ module Prawn
     #   | C | D | E |
     #   +---+---+---+
     # The values in each iteration will be:
-    #  * Cell A, 0
-    #  * Cell B, 2
-    #  * Cell C, 0
-    #  * Cell D, 1
-    #  * Cell E, 2
+    #  * Cell A, 0, 0
+    #  * Cell B, 2, 0
+    #  * Cell C, 0, 1
+    #  * Cell D, 1, 1
+    #  * Cell E, 2, 1
     #
     def each_cell_with_index
       rowspan_cells = {}
+      n_row = 0
       renderable_data.each do |row|
         index = 0
         rowspan_cells.each_value { |v|    v[:rowspan] -= 1 }
@@ -222,7 +250,7 @@ module Prawn
             index += rowspan_cells[ index ][:colspan]
           end
 
-          yield cell, index
+          yield cell, index, n_row
 
           if cell.rowspan > 1
             rowspan_cells[ index ] = { :rowspan => cell.rowspan,
@@ -230,6 +258,7 @@ module Prawn
           end
           index += cell.colspan
         end # row.each
+        n_row += 1
       end # renderable_data.each
     end
 
