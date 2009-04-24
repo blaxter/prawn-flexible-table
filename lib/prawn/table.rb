@@ -272,40 +272,41 @@ module Prawn
       }
 
       # Firstly, calculate column widths for cells without colspan attribute
+      colspan_cell_to_proccess = []
       each_cell_with_index do |cell, index|
         if cell.colspan <= 1
           length = cells_width.call( cell )
           @column_widths[ index ] = length if length > @column_widths[ index ]
+        else
+          colspan_cell_to_proccess << [ cell, index ]
         end
       end
 
-      # Secondly, calculate column width for cell with colspan attribute
+      # Secondly, calculate column width for cells with colspan attribute
       # and update @column_widths properly
-      each_cell_with_index do |cell, index|
+      colspan_cell_to_proccess.each do |cell, index|
         current_colspan = cell.colspan
-        if current_colspan > 1
-          calculate_width = @column_widths.slice( index, current_colspan ).
-            inject( 0 ) { |t, w| t + w }
-          length = cells_width.call( cell )
-          if length > calculate_width
-            # This is a little tricky, we have to increase each column
-            # that the actual colspan cell use, by a proportional part
-            # so the sum of these widths will be equal to the actual width
-            # of our colspan cell
-            difference  = length - calculate_width
-            increase    = ( difference / current_colspan ).floor
-            increase_by = [ increase ] * current_colspan
-            # it's important to sum, in total, the difference, so if
-            # difference is, e.g., 3 and current_colspan is 2, increase_by
-            # will be [ 1, 1 ], but actually we want to be [ 2, 1 ]
-            extra_dif   = difference - increase * current_colspan
-            extra_dif.times { |n| increase_by[n] += 1 }
-            current_colspan.times do |j|
-              @column_widths[ index + j ] += increase_by[j]
-            end
+        calculate_width = @column_widths.slice( index, current_colspan ).
+          inject( 0 ) { |t, w| t + w }
+        length = cells_width.call( cell )
+        if length > calculate_width
+          # This is a little tricky, we have to increase each column
+          # that the actual colspan cell use, by a proportional part
+          # so the sum of these widths will be equal to the actual width
+          # of our colspan cell
+          difference  = length - calculate_width
+          increase    = ( difference / current_colspan ).floor
+          increase_by = [ increase ] * current_colspan
+          # it's important to sum, in total, the difference, so if
+          # difference is, e.g., 3 and current_colspan is 2, increase_by
+          # will be [ 1, 1 ], but actually we want to be [ 2, 1 ]
+          extra_dif   = difference - increase * current_colspan
+          extra_dif.times { |n| increase_by[n] += 1 }
+          current_colspan.times do |j|
+            @column_widths[ index + j ] += increase_by[j]
           end
-        end # if current_colspan
-      end # row.each_with_inedx
+        end
+      end
 
       # Thridly, establish manual column widths
       manual_width = 0
