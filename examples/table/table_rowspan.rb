@@ -10,8 +10,8 @@ require "prawn"
 require "prawn/layout"
 
 Prawn::Document.generate "table_rowspan.pdf" do
-  data = [ [ Prawn::Table::Cell.new( :rowspan => 10, :text => '01/01/2008' ),
-             Prawn::Table::Cell.new( :rowspan => 5,  :text => 'John Doe'   ),
+  data = [ [ { :rowspan => 10, :text => '01/01/2008' },
+             { :rowspan => 5,  :text => 'John Doe'   },
              '4.2', '125.00', '525.00' ],
            [ '4.2', '125.00', '525.00' ], 
            [ '4.2', '125.00', '525.00' ], 
