@@ -262,20 +262,21 @@ module Prawn
       end # renderable_data.each
     end
 
+    def cells_width( cell )
+      width = 2 * C(:horizontal_padding) + cell.to_s.lines.map do |e|
+        @document.width_of(e, :size => C(:font_size))
+      end.max.to_f
+      width.ceil
+    end
+
     def calculate_column_widths(manual_widths=nil, width=nil)
       @column_widths = [0] * @data[0].inject(0){ |total, e| total + e.colspan }
-      cells_width    = lambda{ |cell|
-        ( 2 * C(:horizontal_padding) +
-          cell.to_s.lines.map do |e|
-            @document.width_of(e, :size => C(:font_size))
-          end.max.to_f ).ceil
-      }
 
       # Firstly, calculate column widths for cells without colspan attribute
       colspan_cell_to_proccess = []
       each_cell_with_index do |cell, index|
         if cell.colspan <= 1
-          length = cells_width.call( cell )
+          length = cells_width( cell )
           @column_widths[ index ] = length if length > @column_widths[ index ]
         else
           colspan_cell_to_proccess << [ cell, index ]
@@ -288,7 +289,7 @@ module Prawn
         current_colspan = cell.colspan
         calculate_width = @column_widths.slice( index, current_colspan ).
           inject( 0 ) { |t, w| t + w }
-        length = cells_width.call( cell )
+        length = cells_width( cell )
         if length > calculate_width
           # This is a little tricky, we have to increase each column
           # that the actual colspan cell use, by a proportional part
