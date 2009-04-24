@@ -10,6 +10,7 @@ describe "A table's width" do
 
     table.width.should == 300
   end
+
   it "should calculate unspecified column widths even " +
      "with rowspan cells declared (as hashes)" do
     pdf = Prawn::Document.new
@@ -33,8 +34,33 @@ describe "A table's width" do
     table.width.should == width_table_for( pdf, hpad, fs, cells )
   end
 
+  it "should calculate unspecified column widths even " +
+     "with rowspan cells declared before another bigger cells" do
+    pdf = Prawn::Document.new
+    hpad, fs = 3, 12
+    # +----------------------------+
+    # | foobarfoobar      | foobar |
+    # +----------------------------+
+    # | foo       | foo   | foo    |
+    # | foobarfoo | foo   | foo    |
+    # +----------------------------+
+    data = [ [ { :text => 'foobarfoobar', :colspan => 2 }, "foobar" ],
+             [ "foo", "foo", "foo" ],
+             [ "foobarfoo", "foo", "foo" ] ]
+    table = Prawn::Table.new( data, pdf,
+      :horizontal_padding => hpad,
+      :font_size          => fs )
+    # The relevant cells are:
+    #   - (2, 0) "foobarfoo"
+    #   - (1, 1) "foo"
+    #   - (0, 1) "foobar"
+    cells = %w( foobarfoo foo foobar )
+
+    table.width.should == width_table_for( pdf, hpad, fs, cells )
+  end
+
   it "should calculate unspecified column widths even when there is a cell " +
-     "with rowspan attribute and it's bigger than the other cells of " +
+     "with colspan attribute and it's bigger than the other cells of " +
      "these columns" do
     pdf = Prawn::Document.new
     hpad, fs = 3, 12
@@ -46,6 +72,29 @@ describe "A table's width" do
     # +---------------------------------+
     data = [ [ { :text => 'foobar baz waldo waldo', :colspan => 2 }, "foobar" ],
              [ "foo", "foo", "foo" ] ]
+    table = Prawn::Table.new( data, pdf,
+      :horizontal_padding => hpad,
+      :font_size          => fs )
+    # The relevant cells are:
+    #   - (0, 0) "foobar baz waldo waldo"
+    #   - (0 ,1) "foobar" [at col 2]
+    cells = %w( foobar\ baz\ waldo\ waldo foobar )
+
+    table.width.should == width_table_for( pdf, hpad, fs, cells )
+  end
+
+  it "should calculate unspecified column widths even when there are cells " +
+     "with rowspain attribute" do
+    pdf = Prawn::Document.new
+    hpad, fs = 3, 12
+
+    # +---------------------------------+
+    # | foobar baz waldo waldo | foobar |
+    # |                        + -------+
+    # |                        | foo    |
+    # +---------------------------------+
+    data = [ [ { :text => 'foobar baz waldo waldo', :rowspan => 2 }, "foobar" ],
+             [ "foo" ] ]
     table = Prawn::Table.new( data, pdf,
       :horizontal_padding => hpad,
       :font_size          => fs )
@@ -314,4 +363,38 @@ describe "An invalid table" do
     }.should.raise( Prawn::Errors::EmptyTable )
   end   
 
+  it "should raise an InvalidTableData with bad formed data" do
+    lambda {
+      data = [ [ 'a', 'b' ], [ 'c' ] ]
+      @pdf.table( data )
+    }.should.raise( Prawn::Errors::InvalidTableData )
+
+    lambda {
+      data = [ [ 'a' ], [ 'b', 'c' ] ]
+      @pdf.table( data )
+    }.should.raise( Prawn::Errors::InvalidTableData )
+  end
+
+  it "should raise an InvalidTableData with bad formed data even with " +
+     "either rowspan or colspan cells" do
+    lambda {
+      data = [ [ { :rowspan => 2, :text => 'a' }, 'b' ],
+               [ 'c', 'd' ] ]
+      @pdf.table( data )
+    }.should.raise( Prawn::Errors::InvalidTableData )
+
+    lambda {
+      data = [ [ { :rowspan => 2, :text => 'a' },
+                 { :rowspan => 2, :text => 'b' } ],
+               [ 'c', 'd', 'e', 'f', 'g' ] ]
+      @pdf.table( data )
+    }.should.raise( Prawn::Errors::InvalidTableData )
+
+    lambda {
+      data = [ [ { :rowspan => 2, :text => 'a' },
+                 { :colspan => 2, :text => 'b' } ],
+               [ 'c', 'd', 'e' ] ]
+      @pdf.table( data )
+    }.should.raise( Prawn::Errors::InvalidTableData )
+  end
 end

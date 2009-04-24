@@ -145,6 +145,9 @@ module Prawn
         C(:original_row_colors => C(:row_colors)) 
       end
 
+      # Once we have all configuration setted...
+      normalize_data
+      check_rows_lengths
       calculate_column_widths(options[:column_widths], options[:width])
     end                                        
     
@@ -186,74 +189,129 @@ module Prawn
         :vertical_padding    => 5 } 
     end
 
-    def calculate_column_widths(manual_widths=nil, width=nil)
-      @column_widths = [0] * @data[0].inject(0){ |acc, e| 
-        acc += (e.is_a?(Hash) && e.has_key?(:colspan)) ? e[:colspan] : 1 }
-
-      cells_width = lambda { |cell|
-        cell_text = cell.is_a?(Hash) ? cell[:text] : cell.to_s
-        cell_text.lines.map do |e|
-          @document.width_of(e, :size => C(:font_size))
-        end.max.to_f + 2*C(:horizontal_padding)
-      }
-      cells_colspan = lambda { |cell|
-        if cell.is_a?( Hash ) && cell[:colspan]
-          cell[:colspan]
-        elsif cell.respond_to?( :colspan )
-          cell.colspan
+    # Check that all rows are well formed with the same length.
+    #
+    # Will raise an <tt>Prawn::Errors::InvalidTableData</tt> exception
+    # in case that a bad formed row is found
+    def check_rows_lengths
+      tables_width = nil
+      actual_row   = 0
+      old_index    = -1
+      check_last_row = lambda {
+        tables_width ||= old_index # only setted the first time
+        if tables_width != nil && tables_width != old_index
+          raise Prawn::Errors::InvalidTableData
+            "The row #{actual_row} has a length of #{old_index + 1}, " +
+            "it should be of #{tables_width + 1} according to the previous rows"
         end
       }
-      # Firstly, calculate column widths for cells without colspan attribute
+      each_cell_with_index do |cell, i, n_row|
+        if actual_row != n_row # is new row
+          check_last_row.call
+          actual_row = n_row
+        end
+        old_index = i
+      end
+      check_last_row.call
+    end
+
+    # An iterator method around renderable_data method.
+    #
+    # The issue using renderable_data is that in each iteration you don't know
+    # the real index for that cell, due to colspan & rowspan values of the
+    # previous cells.
+    #
+    # So this method yields every cell (Prawn::Table::Cell) with its column
+    # index.
+    #
+    # Example:
+    #   +-----------+
+    #   | A     | B |
+    #   +-------+---+
+    #   | C | D | E |
+    #   +---+---+---+
+    # The values in each iteration will be:
+    #  * Cell A, 0, 0
+    #  * Cell B, 2, 0
+    #  * Cell C, 0, 1
+    #  * Cell D, 1, 1
+    #  * Cell E, 2, 1
+    #
+    def each_cell_with_index
+      rowspan_cells = {}
+      n_row = 0
       renderable_data.each do |row|
-        colspan = 0
-        row.each_with_index do |cell, i|
-          current_colspan = cells_colspan.call( cell )
-          if current_colspan.nil?
-            length = cells_width.call( cell ).ceil
-            index  = i + colspan
-            @column_widths[ index ] = length if length > @column_widths[ index ]
-          else
-            colspan += current_colspan - 1
+        index = 0
+        rowspan_cells.each_value { |v|    v[:rowspan] -= 1 }
+        rowspan_cells.delete_if  { |k, v| v[:rowspan] == 0 }
+        row.each do |cell|
+          while rowspan_cells[ index ] do
+            index += rowspan_cells[ index ][:colspan]
+          end
+
+          yield cell, index, n_row
+
+          if cell.rowspan > 1
+            rowspan_cells[ index ] = { :rowspan => cell.rowspan,
+                                       :colspan => cell.colspan }
+          end
+          index += cell.colspan
+        end # row.each
+        n_row += 1
+      end # renderable_data.each
+    end
+
+    def cells_width( cell )
+      width = 2 * C(:horizontal_padding) + cell.to_s.lines.map do |e|
+        @document.width_of(e, :size => C(:font_size))
+      end.max.to_f
+      width.ceil
+    end
+
+    def calculate_column_widths(manual_widths=nil, width=nil)
+      @column_widths = [0] * @data[0].inject(0){ |total, e| total + e.colspan }
+
+      # Firstly, calculate column widths for cells without colspan attribute
+      colspan_cell_to_proccess = []
+      each_cell_with_index do |cell, index|
+        if cell.colspan <= 1
+          length = cells_width( cell )
+          @column_widths[ index ] = length if length > @column_widths[ index ]
+        else
+          colspan_cell_to_proccess << [ cell, index ]
+        end
+      end
+
+      # Secondly, calculate column width for cells with colspan attribute
+      # and update @column_widths properly
+      colspan_cell_to_proccess.each do |cell, index|
+        current_colspan = cell.colspan
+        calculate_width = @column_widths.slice( index, current_colspan ).
+          inject( 0 ) { |t, w| t + w }
+        length = cells_width( cell )
+        if length > calculate_width
+          # This is a little tricky, we have to increase each column
+          # that the actual colspan cell use, by a proportional part
+          # so the sum of these widths will be equal to the actual width
+          # of our colspan cell
+          difference  = length - calculate_width
+          increase    = ( difference / current_colspan ).floor
+          increase_by = [ increase ] * current_colspan
+          # it's important to sum, in total, the difference, so if
+          # difference is, e.g., 3 and current_colspan is 2, increase_by
+          # will be [ 1, 1 ], but actually we want to be [ 2, 1 ]
+          extra_dif   = difference - increase * current_colspan
+          extra_dif.times { |n| increase_by[n] += 1 }
+          current_colspan.times do |j|
+            @column_widths[ index + j ] += increase_by[j]
           end
         end
       end
 
-      # Secondly, calculate column widths for cells with colspan attribute
-      renderable_data.each do |row|
-        colspan = 0
-        row.each_with_index do |cell, i|
-          current_colspan = cells_colspan.call( cell )
-          index           = i + colspan
-          unless current_colspan.nil?
-            calculate_width = @column_widths.slice( index, current_colspan ).
-                                             inject( 0 ) { |t, w| t + w }
-            length = cells_width.call( cell ).ceil
-            if length > calculate_width
-              # This is a little tricky, we have to increase each column
-              # that the actual colspan cell use, by a proportional part
-              # so the sum of these widths will be equal to the actual width
-              # of our colspan cell
-              difference  = length - calculate_width
-              increase    = ( difference / current_colspan ).floor
-              increase_by = [ increase ] * current_colspan
-              # it's important to sum, in total, the difference, so if
-              # difference is, e.g., 3 and current_colspan is 2, increase_by
-              # will be [ 1, 1 ], but actually we want to be [ 2, 1 ]
-              extra_dif   = difference - increase * current_colspan
-              extra_dif.times { |n| increase_by[n] += 1 }
-              current_colspan.times do |j|
-                @column_widths[ index + j ] += increase_by[j]
-              end
-            end
-            colspan += current_colspan - 1
-          end # if current_colspan
-        end # row.each_with_inedx
-      end
-
-      # Thridly, stablish manual column widths
+      # Thridly, establish manual column widths
       manual_width = 0
-      manual_widths.each { |k,v| 
-        @column_widths[k] = v; manual_width += v } if manual_widths           
+      manual_widths.each { |k,v|
+        @column_widths[k] = v; manual_width += v } if manual_widths
 
       # Finally, ensures that the maximum width of the document is not exceeded.
       # Takes into consideration the manual widths specified (With full manual
@@ -281,67 +339,86 @@ module Prawn
 
 
     def renderable_data
-      C(:headers) ? [C(:headers)] + @data : @data
+      C(:headers) ? C(:headers) + @data : @data
+    end
+
+    # Transform all items from @data into Prawn::Table::Cell objects
+    def normalize_data
+      normalize = lambda { |data|
+        data.map do |row|
+          row.map do |cell|
+            unless cell.is_a?( Hash ) || cell.is_a?( Prawn::Table::Cell )
+              cell = { :text => cell.to_s }
+            end
+            if cell.is_a?( Hash )
+              cell = Prawn::Table::Cell.new( cell )
+            end
+            cell.document = @document
+            cell
+          end
+        end
+      }
+      @data = normalize.call( @data )
+      # C is an alias to configuration method, which is a wrapper around @config
+      @config[:headers] = normalize.call( [ C(:headers) ] ) if C(:headers)
+
     end
 
     def generate_table    
       page_contents = []
-      y_pos = @document.y 
+      y_pos = @document.y
+      rowspan_cells = {}
 
       @document.font_size C(:font_size) do
-        renderable_data.each_with_index do |row,index|
+        renderable_data.each_with_index do |row, index|
           c = Prawn::Table::CellBlock.new(@document)
-          
+
+          rowspan_cells.each_value { |v|    v[:rowspan] -= 1 }
+          rowspan_cells.delete_if  { |k, v| v[:rowspan] == 0 }
+
           col_index = 0
           row.each do |e|
-            case C(:align)
-            when Hash
-              align            = C(:align)[col_index]
-            else
-              align            = C(:align)
-            end   
-            
-            
-            align ||= e.to_s =~ NUMBER_PATTERN ? :right : :left 
-            
-            case e
-            when Prawn::Table::Cell
-              e.document = @document
-              e.width    = @column_widths[col_index]
-              e.horizontal_padding = C(:horizontal_padding)
-              e.vertical_padding   = C(:vertical_padding)    
-              e.border_width       = C(:border_width)
-              e.border_style       = :sides
-              e.align              = align 
-              c << e
-            else
-              text = e.is_a?(Hash) ? e[:text] : e.to_s
-              width = if e.is_a?(Hash) && e.has_key?(:colspan)
-                @column_widths.slice(col_index, e[:colspan]).inject { 
-                  |sum, width| sum + width }
+            align = case C(:align)
+              when Hash
+                C(:align)[ col_index ]
               else
-                @column_widths[col_index]
-              end
-              
-              cell_options = {:document => @document, 
-                :text     => text,
-                :width    => width,
-                :horizontal_padding => C(:horizontal_padding),
-                :vertical_padding   => C(:vertical_padding),
-                :border_width       => C(:border_width),
-                :border_style       => :sides,
-                :align              => align}
-              cell_options[:font_style] = e[:font_style] if e.is_a?(Hash) && e.has_key?(:font_style)
-              cell_options[:font_size] = e[:font_size] if e.is_a?(Hash) && e.has_key?(:font_size)
-
-              c << Prawn::Table::Cell.new(cell_options)
+                C(:align)
             end
-            
-            col_index += (e.is_a?(Hash) && e.has_key?(:colspan)) ? e[:colspan] : 1
-          end
-                                              
+            align ||= e.to_s =~ NUMBER_PATTERN ? :right : :left
+
+            while rowspan_cells[ col_index ] do
+              c << rowspan_cells[ col_index ][:cell_fake]
+              col_index += rowspan_cells[ col_index ][:colspan]
+            end
+
+            colspan = e.colspan
+            rowspan = e.rowspan
+
+            width = @column_widths.
+              slice( col_index, colspan ).
+              inject { |sum, width|  sum + width }
+
+            e.width              = width
+            e.horizontal_padding = C(:horizontal_padding)
+            e.vertical_padding   = C(:vertical_padding)
+            e.border_width       = C(:border_width)
+            e.align            ||= align
+
+            if rowspan > 1
+              cell_fake = Prawn::Table::CellFake.new( :width => width )
+              rowspan_cells[ col_index ] = {
+                :rowspan   => rowspan,
+                :colspan   => colspan,
+                :cell_fake => cell_fake
+              }
+            end
+            c << e
+            col_index += colspan
+          end # row.each do |e|
+
           bbox = @parent_bounds.stretchy? ? @document.margin_box : @parent_bounds
-          if c.height > y_pos - bbox.absolute_bottom
+          fit_in_current_page = c.height <= y_pos - bbox.absolute_bottom
+          if ! fit_in_current_page then
             if C(:headers) && page_contents.length == 1
               @document.start_new_page
               y_pos = @document.y
@@ -398,7 +475,18 @@ module Prawn
           e.background_color = C(:header_color) if C(:header_color)
         end
       end
-      
+
+      # modified the height of the cells with rowspan attribute
+      contents.each_with_index do |x, i|
+        x.cells.each do |cell|
+          if cell.rowspan > 1
+            heights_per_row ||= contents.map { |x| x.height }
+            cell.height = heights_per_row.
+                slice( i, cell.rowspan ).inject(0){ |sum, h| sum + h }
+          end
+        end
+      end
+
       contents.each do |x|
         unless x.background_color
           x.background_color = next_row_color if C(:row_colors)

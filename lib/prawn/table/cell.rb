@@ -76,12 +76,16 @@ module Prawn
         if options[:padding]
           @horizontal_padding = @vertical_padding = options[:padding]
         end
+
+        @rowspan = options[:rowspan] || 1
+        @colspan = options[:colspan] || 1
       end
 
       attr_accessor :point, :border_style, :border_width, :background_color,
                     :document, :horizontal_padding, :vertical_padding, :align,
-                    :borders, :text_color, :border_color, :font_size, :font_style
-                    
+                    :borders, :text_color, :border_color, :font_size, :font_style,
+                    :rowspan, :colspan
+
       attr_writer   :height, :width #:nodoc:   
            
       # Returns the cell's text as a string.
@@ -213,6 +217,15 @@ module Prawn
 
     end
 
+    class CellFake < Cell #:nodoc:
+      def height
+        0
+      end
+
+      def draw
+      end
+    end
+
     class CellBlock #:nodoc:
 
       # Not sure if this class is something I want to expose in the public API.
@@ -241,7 +254,7 @@ module Prawn
         @cells.each do |e|
           e.point  = [x - @document.bounds.absolute_left, 
                       y - @document.bounds.absolute_bottom]
-          e.height = @height
+          e.height ||= @height
           e.background_color ||= @background_color
           e.text_color ||= @text_color
           e.border_color ||= @border_color
