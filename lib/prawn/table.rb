@@ -218,7 +218,7 @@ module Prawn
         rowspan_cells.each_value { |v|    v[:rowspan] -= 1 }
         rowspan_cells.delete_if  { |k, v| v[:rowspan] == 0 }
         row.each do |cell|
-          if rowspan_cells[ index ]
+          while rowspan_cells[ index ] do
             index += rowspan_cells[ index ][:colspan]
           end
 
@@ -355,7 +355,7 @@ module Prawn
             end
             align ||= e.to_s =~ NUMBER_PATTERN ? :right : :left
 
-            if rowspan_cells[ col_index ]
+            while rowspan_cells[ col_index ] do
               c << rowspan_cells[ col_index ][:cell_fake]
               col_index += rowspan_cells[ col_index ][:colspan]
             end
