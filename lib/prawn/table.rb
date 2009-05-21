@@ -210,7 +210,7 @@ module Prawn
           check_last_row.call
           actual_row = n_row
         end
-        old_index = i
+        old_index = i + cell.colspan - 1
       end
       check_last_row.call
     end
