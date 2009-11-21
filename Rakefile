@@ -55,10 +55,10 @@ spec = Gem::Specification.new do |spec|
   spec.extra_rdoc_files = %w{README}
   spec.rdoc_options << '--title' << 'Prawn Documentation' <<
                        '--main'  << 'README' << '-q'
-  spec.author = "Gregory Brown"
-  spec.email = "  gregory.t.brown@gmail.com"
+  spec.author = "Jesús García Sáez"
+  spec.email = "blaxter@gmail.com"
   spec.rubyforge_project = "prawn"
-  spec.homepage = "http://prawn.majesticseacreature.com"
+  spec.homepage = "http://github.com/blaxter/prawn-flexible-table"
   spec.description = <<END_DESC
   An extension to Prawn that provides flexible table support, that means be able to create tables with rowspan and colspan attributes for each cell
 END_DESC
