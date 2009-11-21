@@ -1,9 +1,9 @@
-Prawn::Layout is copyrighted free software produced by Gregory Brown along with 
+Prawn::FlexibleTable is copyrighted free software produced by Gregory Brown along with 
 many community contributions (see git log for attribution).
 
 Licensing terms follow (License of Ruby 1.8):
 
-You can redistribute Prawn::Layout and/or modify it under either the terms of the GPL
+You can redistribute Prawn::FlexibleTable and/or modify it under either the terms of the GPL
 (see COPYING file), or the conditions below:
 
   1. You may make and give away verbatim copies of the source form of the
