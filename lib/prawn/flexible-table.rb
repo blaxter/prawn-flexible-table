@@ -1,5 +1,5 @@
-require "flexible-table/cell"
-require "errors"
+require "prawn/flexible-table/cell"
+require "prawn/errors"
 
 module Prawn; end
 
