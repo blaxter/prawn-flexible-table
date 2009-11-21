@@ -78,8 +78,17 @@ class Prawn::FlexibleTable
   # Creates a new Document::FlexibleTable object. This is generally called
   # indirectly through Document#flexible_table but can also be used explictly.
   #
-  # The <tt>data</tt> argument is a two dimensional array of strings,
-  # organized by row, e.g. [["r1-col1","r1-col2"],["r2-col2","r2-col2"]].
+  # The <tt>data</tt> argument is a two dimensional array of either string,
+  # FlexibleTable::Cell or hashes (with the options to create a Cell object),
+  # organized by row, e.g.:
+  #
+  #    [["r1-col1","r1-col2"],["r2-col2","r2-col2"]]
+  #
+  #    [ [ {:text => "r1-2 col1-2", :rowspan => 2, :colspan => 2}, "r1-col3"],
+  #      [ {:text => "r2 col 3", :text_color => "EEAAFF" } ],
+  #      [ "r3 col1", "r3 col2", "r3 col3" ] ]
+  #
+  #
   # As with all Prawn text drawing operations, strings must be UTF-8 encoded.
   #
   # The following options are available for customizing your tables, with
@@ -97,8 +106,8 @@ class Prawn::FlexibleTable
   # <tt>:border_style</tt>:: If set to :grid, fills in all borders. If set to :underline_header, underline header only. Otherwise, borders are drawn on columns only, not rows
   # <tt>:border_color</tt>:: Sets the color of the borders.
   # <tt>:position</tt>:: One of <tt>:left</tt>, <tt>:center</tt> or <tt>n</tt>, where <tt>n</tt> is an x-offset from the left edge of the current bounding box
-  # <tt>:width:</tt> A set width for the table, defaults to the sum of all column widths
-  # <tt>:column_widths:</tt> A hash of indices and widths in PDF points.  E.g. <tt>{ 0 => 50, 1 => 100 }</tt>
+  # <tt>:width:</tt>:: A set width for the table, defaults to the sum of all column widths
+  # <tt>:column_widths:</tt>:: A hash of indices and widths in PDF points.  E.g. <tt>{ 0 => 50, 1 => 100 }</tt>
   # <tt>:row_colors</tt>:: An array of row background colors which are used cyclicly.
   # <tt>:align</tt>:: Alignment of text in columns, for entire table (<tt>:center</tt>) or by column (<tt>{ 0 => :left, 1 => :center}</tt>)
   #
