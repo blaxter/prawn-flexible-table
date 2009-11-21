@@ -4,7 +4,7 @@ require "errors"
 module Prawn; end
 
 class Prawn::Document
-  
+
   # Builds and renders a Document::FlexibleTable object from raw data.
   # For details on the options that can be passed, see
   # Document::FlexibleTable.new
@@ -12,7 +12,7 @@ class Prawn::Document
   #   data = [["Gregory","Brown"],["James","Healy"],["Jia","Wu"]]
   #
   #   Prawn::Document.generate("table.pdf") do
-  #     
+  #
   #     # Default table, without headers
   #     flexible_table(data)
   #
@@ -35,7 +35,7 @@ class Prawn::Document
   #
   #   end
   #
-  #   Will raise <tt>Prawn::Errors::EmptyTable</tt> given 
+  #   Will raise <tt>Prawn::Errors::EmptyTable</tt> given
   #   a nil or empty <tt>data</tt> paramater.
   #
   def flexible_table(data, options={})
@@ -49,7 +49,7 @@ end
 
 
 # This class implements simple PDF flexible table generation.
-# 
+#
 # Prawn tables have the following features:
 #
 #   * Can be generated with or without headers
@@ -58,7 +58,7 @@ end
 #   * Can be positioned by bounding boxes (left/center aligned) or an
 #     absolute x position
 #   * Automated page-breaking as needed
-#   * Column widths can be calculated automatically or defined explictly on a 
+#   * Column widths can be calculated automatically or defined explictly on a
 #     column by column basis
 #   * Text alignment can be set for the whole table or by column
 #   * Cells can have both rowspan and colspan attributes
@@ -67,15 +67,15 @@ end
 # basic needs for PDF table generation.  If you have feature requests,
 # please share them at: http://groups.google.com/group/prawn-ruby
 #
-class Prawn::FlexibleTable  
-  
+class Prawn::FlexibleTable
+
   include Prawn::Configurable
 
-  attr_reader :column_widths # :nodoc: 
-  
-  NUMBER_PATTERN = /^-?(?:0|[1-9]\d*)(?:\.\d+(?:[eE][+-]?\d+)?)?$/ #:nodoc: 
+  attr_reader :column_widths # :nodoc:
 
-  # Creates a new Document::FlexibleTable object. This is generally called 
+  NUMBER_PATTERN = /^-?(?:0|[1-9]\d*)(?:\.\d+(?:[eE][+-]?\d+)?)?$/ #:nodoc:
+
+  # Creates a new Document::FlexibleTable object. This is generally called
   # indirectly through Document#flexible_table but can also be used explictly.
   #
   # The <tt>data</tt> argument is a two dimensional array of strings,
@@ -99,73 +99,73 @@ class Prawn::FlexibleTable
   # <tt>:position</tt>:: One of <tt>:left</tt>, <tt>:center</tt> or <tt>n</tt>, where <tt>n</tt> is an x-offset from the left edge of the current bounding box
   # <tt>:width:</tt> A set width for the table, defaults to the sum of all column widths
   # <tt>:column_widths:</tt> A hash of indices and widths in PDF points.  E.g. <tt>{ 0 => 50, 1 => 100 }</tt>
-  # <tt>:row_colors</tt>:: An array of row background colors which are used cyclicly.   
+  # <tt>:row_colors</tt>:: An array of row background colors which are used cyclicly.
   # <tt>:align</tt>:: Alignment of text in columns, for entire table (<tt>:center</tt>) or by column (<tt>{ 0 => :left, 1 => :center}</tt>)
   #
   # Row colors are specified as html encoded values, e.g.
-  # ["ffffff","aaaaaa","ccaaff"].  You can also specify 
+  # ["ffffff","aaaaaa","ccaaff"].  You can also specify
   # <tt>:row_colors => :pdf_writer</tt> if you wish to use the default color
   # scheme from the PDF::Writer library.
   #
   # See Document#flexible_table for typical usage, as directly using this class is
   # not recommended unless you know why you want to do it.
   #
-  def initialize(data, document, options={})     
+  def initialize(data, document, options={})
     unless data.all? { |e| Array === e }
       raise Prawn::Errors::InvalidTableData,
         "data must be a two dimensional array of Prawn::Cells or strings"
     end
-    
-    @data     = data        
+
+    @data     = data
     @document = document
-    
+
     Prawn.verify_options [:font_size,:border_style, :border_width,
-     :position, :headers, :row_colors, :align, :align_headers, 
-     :header_text_color, :border_color, :horizontal_padding, 
-     :vertical_padding, :padding, :column_widths, :width, :header_color ], 
-     options     
-                                        
-    configuration.update(options)  
+     :position, :headers, :row_colors, :align, :align_headers,
+     :header_text_color, :border_color, :horizontal_padding,
+     :vertical_padding, :padding, :column_widths, :width, :header_color ],
+     options
+
+    configuration.update(options)
 
     if padding = options[:padding]
-      C(:horizontal_padding => padding, :vertical_padding => padding) 
+      C(:horizontal_padding => padding, :vertical_padding => padding)
     end
-     
-    if options[:row_colors] == :pdf_writer 
-      C(:row_colors => ["ffffff","cccccc"])  
+
+    if options[:row_colors] == :pdf_writer
+      C(:row_colors => ["ffffff","cccccc"])
     end
-    
+
     if options[:row_colors]
-      C(:original_row_colors => C(:row_colors)) 
+      C(:original_row_colors => C(:row_colors))
     end
 
     # Once we have all configuration setted...
     normalize_data
     check_rows_lengths
     calculate_column_widths(options[:column_widths], options[:width])
-  end                                        
-  
+  end
+
   attr_reader :column_widths #:nodoc:
-  
+
   # Width of the table in PDF points
   #
   def width
      @column_widths.inject(0) { |s,r| s + r }
   end
-  
+
   # Draws the table onto the PDF document
   #
-  def draw  
-    @parent_bounds = @document.bounds  
-    case C(:position) 
+  def draw
+    @parent_bounds = @document.bounds
+    case C(:position)
     when :center
       x = (@document.bounds.width - width) / 2.0
       dy = @document.bounds.absolute_top - @document.y
-      @document.bounding_box [x, @parent_bounds.top], :width => width do 
+      @document.bounding_box [x, @parent_bounds.top], :width => width do
         @document.move_down(dy)
         generate_table
       end
-    when Numeric     
+    when Numeric
       x, y = C(:position), @document.y - @document.bounds.absolute_bottom
       @document.bounding_box([x,y], :width => width) { generate_table }
     else
@@ -174,13 +174,13 @@ class Prawn::FlexibleTable
   end
 
   private
-  
-  def default_configuration     
-    { :font_size           => 12, 
-      :border_width        => 1, 
+
+  def default_configuration
+    { :font_size           => 12,
+      :border_width        => 1,
       :position            => :left,
       :horizontal_padding  => 5,
-      :vertical_padding    => 5 } 
+      :vertical_padding    => 5 }
   end
 
   # Check that all rows are well formed with the same length.
@@ -315,18 +315,18 @@ class Prawn::FlexibleTable
     calculated_width = @column_widths.inject {|sum,e| sum += e }
 
     if calculated_width > max_width
-      shrink_by = (max_width - manual_width).to_f / 
+      shrink_by = (max_width - manual_width).to_f /
         (calculated_width - manual_width)
-      @column_widths.each_with_index { |c,i| 
-        @column_widths[i] = c * shrink_by if manual_widths.nil? || 
-          manual_widths[i].nil? 
+      @column_widths.each_with_index { |c,i|
+        @column_widths[i] = c * shrink_by if manual_widths.nil? ||
+          manual_widths[i].nil?
       }
     elsif width && calculated_width < width
-      grow_by = (width - manual_width).to_f / 
+      grow_by = (width - manual_width).to_f /
         (calculated_width - manual_width)
-      @column_widths.each_with_index { |c,i| 
-        @column_widths[i] = c * grow_by if manual_widths.nil? || 
-          manual_widths[i].nil? 
+      @column_widths.each_with_index { |c,i|
+        @column_widths[i] = c * grow_by if manual_widths.nil? ||
+          manual_widths[i].nil?
       }
     end
   end
@@ -358,7 +358,7 @@ class Prawn::FlexibleTable
 
   end
 
-  def generate_table    
+  def generate_table
     page_contents = []
     y_pos = @document.y
     rowspan_cells = {}
@@ -453,7 +453,7 @@ class Prawn::FlexibleTable
       contents.first.border_style = C(:headers) ? :all : :no_bottom
       contents.last.border_style = :no_top
     end
-    
+
     if C(:headers)
       contents.first.cells.each_with_index do |e,i|
         if C(:align_headers)
@@ -486,8 +486,8 @@ class Prawn::FlexibleTable
         x.background_color = next_row_color if C(:row_colors)
       end
       x.border_color = C(:border_color) if C(:border_color)
-      
-      x.draw 
+
+      x.draw
     end
 
     reset_row_colors
@@ -500,7 +500,7 @@ class Prawn::FlexibleTable
     color
   end
 
-  def reset_row_colors    
+  def reset_row_colors
     C(:row_colors => C(:original_row_colors).dup) if C(:row_colors)
   end
 

@@ -6,7 +6,7 @@ module Prawn
     # area.  For available options, see FlexibleTable::Cell#new.
     #
     #    Prawn::Document.generate("cell.pdf") do
-    #       f_cell [100,500], 
+    #       f_cell [100,500],
     #         :width => 200,
     #         :text  => "The rain in Spain falls mainly on the plains"
     #    end
@@ -21,7 +21,6 @@ module Prawn
     # A cell is a special-purpose bounding box designed to flow text within a
     # bordered area. This is used by Prawn's Document::FlexibleTable implementation but
     # can also be used standalone for drawing text boxes via Document#f_cell
-    #
     class Cell
 
       # Creates a new cell object.  Generally used indirectly via Document#f_cell
@@ -31,7 +30,7 @@ module Prawn
       # Document#f_cell shortcut, the <tt>:document</tt> must also be provided.
       #
       # <tt>:point</tt>:: Absolute [x,y] coordinate of the top-left corner of the cell.
-      # <tt>:document</tt>:: The Prawn::Document object to render on. 
+      # <tt>:document</tt>:: The Prawn::Document object to render on.
       # <tt>:text</tt>:: The text to be flowed within the cell
       # <tt>:text_color</tt>:: The color of the text to be displayed
       # <tt>:width</tt>:: The width in PDF points of the cell.
@@ -46,7 +45,6 @@ module Prawn
       # <tt>:border_color</tt>:: The color of the cell border.
       # <tt>:font_size</tt>:: The font size for the cell text.
       # <tt>:font_style</tt>:: The font style for the cell text.
-      #
       def initialize(options={})
         @point        = options[:point]
         @document     = options[:document]
@@ -56,9 +54,9 @@ module Prawn
         @height       = options[:height]
         @borders      = options[:borders]
         @border_width = options[:border_width] || 1
-        @border_style = options[:border_style] || :all               
+        @border_style = options[:border_style] || :all
         @border_color = options[:border_color]
-        @background_color = options[:background_color] 
+        @background_color = options[:background_color]
         @align            = options[:align] || :left
         @font_size        = options[:font_size]
         @font_style       = options[:font_style]
@@ -79,34 +77,29 @@ module Prawn
                     :borders, :text_color, :border_color, :font_size, :font_style,
                     :rowspan, :colspan
 
-      attr_writer   :height, :width #:nodoc:   
-           
+      attr_writer   :height, :width #:nodoc:
+
       # Returns the cell's text as a string.
-      #
       def to_s
         @text
       end
 
       # The width of the text area excluding the horizonal padding
-      #
       def text_area_width
         width - 2*@horizontal_padding
       end
 
       # The width of the cell in PDF points
-      #
       def width
         @width || (@document.width_of(@text, :size => @font_size)) + 2*@horizontal_padding
       end
 
       # The height of the cell in PDF points
-      #
-      def height  
+      def height
         @height || text_area_height + 2*@vertical_padding
       end
 
       # The height of the text area excluding the vertical padding
-      #
       def text_area_height
         text_height = 0
         if @font_size
@@ -120,18 +113,17 @@ module Prawn
       end
 
       # Draws the cell onto the PDF document
-      # 
       def draw
-        rel_point = @point                
-        
-        if @background_color    
+        rel_point = @point
+
+        if @background_color
           @document.mask(:fill_color) do
-            @document.fill_color @background_color  
-            h  = borders.include?(:bottom) ? 
+            @document.fill_color @background_color
+            h  = borders.include?(:bottom) ?
               height - border_width : height + border_width / 2.0
-            @document.fill_rectangle [rel_point[0] + border_width / 2.0, 
-                                      rel_point[1] - border_width / 2.0 ], 
-                width - border_width, h  
+            @document.fill_rectangle [rel_point[0] + border_width / 2.0,
+                                      rel_point[1] - border_width / 2.0 ],
+                width - border_width, h
           end
         end
 
@@ -143,19 +135,19 @@ module Prawn
               @document.stroke_color @border_color if @border_color
 
               if borders.include?(:left)
-                @document.stroke_line [rel_point[0], rel_point[1] + (@border_width / 2.0)], 
+                @document.stroke_line [rel_point[0], rel_point[1] + (@border_width / 2.0)],
                   [rel_point[0], rel_point[1] - height - @border_width / 2.0 ]
               end
 
               if borders.include?(:right)
-                @document.stroke_line( 
+                @document.stroke_line(
                   [rel_point[0] + width, rel_point[1] + (@border_width / 2.0)],
                   [rel_point[0] + width, rel_point[1] - height - @border_width / 2.0] )
               end
 
               if borders.include?(:top)
                 @document.stroke_line(
-                  [ rel_point[0] + @border_width / 2.0, rel_point[1] ], 
+                  [ rel_point[0] + @border_width / 2.0, rel_point[1] ],
                   [ rel_point[0] - @border_width / 2.0 + width, rel_point[1] ])
               end
 
@@ -166,13 +158,13 @@ module Prawn
             end
 
           end
-          
+
           borders
 
         end
 
-        @document.bounding_box( [@point[0] + @horizontal_padding, 
-                                 @point[1] - @vertical_padding], 
+        @document.bounding_box( [@point[0] + @horizontal_padding,
+                                 @point[1] - @vertical_padding],
                                 :width   => text_area_width,
                                 :height  => height - @vertical_padding) do
           @document.move_down((@document.font.line_gap - @document.font.descender)/2)
@@ -183,7 +175,7 @@ module Prawn
           options[:style] = @font_style if @font_style
 
           @document.mask(:fill_color) do
-            @document.fill_color @text_color if @text_color                        
+            @document.fill_color @text_color if @text_color
             @document.text @text, options
           end
         end
@@ -207,8 +199,7 @@ module Prawn
           []
         end
       end
-
-    end
+    end # class Cell
 
     class CellFake < Cell #:nodoc:
       def height
@@ -220,9 +211,6 @@ module Prawn
     end
 
     class CellBlock #:nodoc:
-
-      # Not sure if this class is something I want to expose in the public API.
-
       def initialize(document)
         @document = document
         @cells    = []
@@ -235,7 +223,7 @@ module Prawn
 
       def <<(cell)
         @cells << cell
-        @height = cell.height if cell.height > @height 
+        @height = cell.height if cell.height > @height
         @width += cell.width
         self
       end
@@ -245,7 +233,7 @@ module Prawn
         x = @document.bounds.absolute_left
 
         @cells.each do |e|
-          e.point  = [x - @document.bounds.absolute_left, 
+          e.point  = [x - @document.bounds.absolute_left,
                       y - @document.bounds.absolute_bottom]
           e.height ||= @height
           e.background_color ||= @background_color
@@ -254,7 +242,7 @@ module Prawn
           e.draw
           x += e.width
         end
-        
+
         @document.y = y - @height
       end
 
@@ -264,17 +252,16 @@ module Prawn
 
       def border_style=(s)
         @cells.each { |e| e.border_style = s }
-      end    
-      
-      def align=(align) 
-        @cells.each { |e| e.align = align } 
-      end           
-      
+      end
+
+      def align=(align)
+        @cells.each { |e| e.align = align }
+      end
+
       def border_style
         @cells[0].border_style
       end
+    end # class CellBlock
 
-    end
-  end
- 
-end
+  end # class FlexibleTable
+end # module Prawn
