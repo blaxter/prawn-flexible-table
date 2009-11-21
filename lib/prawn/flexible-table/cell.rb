@@ -1,41 +1,34 @@
-# encoding: utf-8   
-
-# cell.rb : Table support functions
-#
-# Copyright June 2008, Gregory Brown.  All Rights Reserved.
-#
-# This is free software. Please see the LICENSE and COPYING files for details.
 module Prawn
 
   class Document
-    # Builds and renders a Table::Cell.  A cell is essentially a
+    # Builds and renders a FlexibleTable::Cell.  A cell is essentially a
     # special-purpose bounding box designed for flowing text within a bordered
-    # area.  For available options, see Table::Cell#new.
+    # area.  For available options, see FlexibleTable::Cell#new.
     #
     #    Prawn::Document.generate("cell.pdf") do
-    #       cell [100,500], 
+    #       f_cell [100,500], 
     #         :width => 200,
     #         :text  => "The rain in Spain falls mainly on the plains"
     #    end
     #
-    def cell(point, options={})
-      Prawn::Table::Cell.new(
+    def f_cell(point, options={})
+      Prawn::FlexibleTable::Cell.new(
         options.merge(:document => self, :point => point)).draw
     end
   end
 
-  class Table
+  class FlexibleTable
     # A cell is a special-purpose bounding box designed to flow text within a
-    # bordered area. This is used by Prawn's Document::Table implementation but
-    # can also be used standalone for drawing text boxes via Document#cell
+    # bordered area. This is used by Prawn's Document::FlexibleTable implementation but
+    # can also be used standalone for drawing text boxes via Document#f_cell
     #
     class Cell
 
-      # Creates a new cell object.  Generally used indirectly via Document#cell
+      # Creates a new cell object.  Generally used indirectly via Document#f_cell
       #
       # Of the available options listed below, <tt>:point</tt>, <tt>:width</tt>,
       # and <tt>:text</tt> must be provided. If you are not using the
-      # Document#cell shortcut, the <tt>:document</tt> must also be provided.
+      # Document#f_cell shortcut, the <tt>:document</tt> must also be provided.
       #
       # <tt>:point</tt>:: Absolute [x,y] coordinate of the top-left corner of the cell.
       # <tt>:document</tt>:: The Prawn::Document object to render on. 
