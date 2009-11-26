@@ -1,22 +1,5 @@
 module Prawn
 
-  class Document
-    # Builds and renders a FlexibleTable::Cell.  A cell is essentially a
-    # special-purpose bounding box designed for flowing text within a bordered
-    # area.  For available options, see FlexibleTable::Cell#new.
-    #
-    #    Prawn::Document.generate("cell.pdf") do
-    #       f_cell [100,500],
-    #         :width => 200,
-    #         :text  => "The rain in Spain falls mainly on the plains"
-    #    end
-    #
-    def f_cell(point, options={})
-      Prawn::FlexibleTable::Cell.new(
-        options.merge(:document => self, :point => point)).draw
-    end
-  end
-
   class FlexibleTable
     # A cell is a special-purpose bounding box designed to flow text within a
     # bordered area. This is used by Prawn's Document::FlexibleTable implementation but
