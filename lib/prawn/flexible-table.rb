@@ -43,7 +43,7 @@ class Prawn::Document
       raise Prawn::Errors::EmptyTable,
         "data must be a non-empty, non-nil, two dimensional array of Prawn::Cells or strings"
     end
-    Prawn::Table.new(data,self,options).draw
+    Prawn::FlexibleTable.new(data,self,options).draw
   end
 end
 
